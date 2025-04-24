@@ -21,11 +21,34 @@ bool gauche = false;
 bool reculer = false;
 bool droite = false;
 
-float coef = 0.5; // Coefficient de vitesse (permet à l'utilisateur d'aller plus ou moins vite)
+bool avancerOrig = false;
+bool gaucheOrig = false;
+bool reculerOrig = false;
+bool droiteOrig = false;
+
+
+
+
+// Variables direction obstacles (utilisé en mode obstacle manuel (voir plus bas)).
+// J'utilise le type "byte" qui est disponible en Arduino. L'équivalent en C++ est unsigned char. Tout deux peuvent
+// stocker des valeurs entre 0 et 255. Cela permet de n'utiliser qu'un seul octet plutôt que 4 comme les int.
+// Cela convient parfaitement aux données renvoyées par les capteurs du radar qui sont comprises entre 10 et 80.
+byte avG = 80;
+byte av = 80;
+byte avD = 80;
+byte d = 80;
+byte arD = 80;
+byte ar = 80;
+byte arG = 80;
+byte g = 80;
+bool arret = true;
+
+
+float coef = 0.5f; // Coefficient de vitesse (permet à l'utilisateur d'aller plus ou moins vite)
 
 unsigned long previousMillis = 0; // Stocke le dernier moment où on a lu les encodeurs. On définit sur 0 car le
                                   // programme commence.
-long interval = 57.8 * (1.73 / coef); // Intervalle en millisecondes. Le calcul est expliqué tout en bas.
+float interval = 28.9f * (1.73f / coef); // Intervalle en millisecondes. Le calcul est expliqué tout en bas.
 
 long enc1 = 0; // Stockera le nombre d'impulsions effectuées par le moteur droit
 long enc2 = 0; // Stockera le nombre d'impulsions effectuées par le moteur gauche
@@ -38,12 +61,14 @@ long enc2Prec = 0; // Même fonction que enc1Prec, pour enc2.
 // ====================================== MODE ======================================
 // 1 = mode manuel
 // 2 = mode autonome
-int mode = 1;
+// 3 = mode obstacle manuel (utilisé pour tester le programme de détection sans le radar LiDAR)
+int mode = 3;
 
 
 
 // ====================================== FONCTIONS ======================================
 
+// Change la vitesse du moteur gauche du robot
 void changerVitesseGauche(int vitesse){
   Wire.beginTransmission(MD25ADDRESS);
   Wire.write(SPEEDENGINE2);
@@ -51,6 +76,7 @@ void changerVitesseGauche(int vitesse){
   Wire.endTransmission();
 }
 
+// Change la vitesse du moteur droit du robot
 void changerVitesseDroite(int vitesse){
   Wire.beginTransmission(MD25ADDRESS);
   Wire.write(SPEEDENGINE1);
@@ -58,6 +84,7 @@ void changerVitesseDroite(int vitesse){
   Wire.endTransmission();
 }
 
+// Réinitialise les encodeurs du robot. On le fait dès le lancement du programme, par sécurité
 void resetEncodeurs() {
   Wire.beginTransmission(MD25ADDRESS);
   Wire.write(0x10);  // Registre Command
@@ -65,28 +92,42 @@ void resetEncodeurs() {
   Wire.endTransmission();
 }
 
+// Je récupère le nombre d’impulsions cumulées depuis le démarrage des encodeurs
+// Note : j’ai choisi une plage de vitesses de –128 à +127, donc quand les moteurs
+// tournent en avant (–1…–128), le compteur décroît. Ça n’affecte pas le comportement général.
 long lireEncodeur(byte registre) {
+  // J’envoie l’adresse de la MD25 et le registre d’encodeur que je veux lire
   Wire.beginTransmission(MD25ADDRESS);
-  Wire.write(registre);  // Demande le premier octet de l'encodeur (Enc1a ou Enc2a)
+  Wire.write(registre);  // registre 2 = MSB de l’encodeur 1, registre 6 = MSB de l’encodeur 2
   Wire.endTransmission();
-  
-  Wire.requestFrom(MD25ADDRESS, 4);  // Demande 4 octets
+
+  // Je demande les 4 octets du compteur (32 bits)
+  Wire.requestFrom(MD25ADDRESS, 4);
 
   long position = 0;
-  if (Wire.available() == 4) {  // Vérifie que 4 octets sont bien reçus
-    position |= (long)Wire.read() << 24;  // Byte 1 (MSB - poids fort)
-    position |= (long)Wire.read() << 16;  // Byte 2
-    position |= (long)Wire.read() << 8;   // Byte 3
-    position |= (long)Wire.read();        // Byte 4 (LSB - poids faible)
+  // Si j’ai bien reçu mes 4 octets, je les assemble
+  if (Wire.available() == 4) {
+    // Je déplace chaque octet à sa place dans le long (MSB → LSB)
+    position |= (long)Wire.read() << 24;  // octet 1 (poids fort)
+    position |= (long)Wire.read() << 16;  // octet 2
+    position |= (long)Wire.read() << 8;   // octet 3
+    position |= (long)Wire.read();        // octet 4 (poids faible)
   }
-  
+
+  // Je renvoie la valeur 32 bits signée
   return position;
 }
 
 
-int detectionObstacleProche(int avG, int av, int avD, int d, int arD, int ar, int arG, int g) {
+// Cette fonction va rercevoir les données des capteurs LiDAR et va déterminer quel capteur a capté l'obstacle le plus
+// proche. Chaque capteur enverra ses données aux directions qui leur correspond.
+// Exemple : le capteur qui est pointé vers l'avant enverra ses données au paramètre "av" pour avant.
+// Autre exemple : le capteur qui est pointé vers l'avant à droite enverra ses données au paramètres "avD" pour avant
+// droit.
+// Note : les valeurs envoyés par les capteurs sont compris entre 10 et 80 (cm)
+int detectionObstacleProche(byte avG, byte av, byte avD, byte d, byte arD, byte ar, byte arG, byte g) {
     int valeurs[8] = {avG, av, avD, d, arD, ar, arG, g};
-    int seuil = 80; // cm
+    int seuil = 80;
 
     int minIndex = 0;
 
@@ -95,7 +136,8 @@ int detectionObstacleProche(int avG, int av, int avD, int d, int arD, int ar, in
             minIndex = i;
         }
     }
-
+    Serial.print(minIndex + 1);
+    Serial.print("    ");
     // Si la valeur minimale est en dessous du seuil ET est unique → retour du capteur concerné
     if (valeurs[minIndex] < seuil)
     {
@@ -433,14 +475,14 @@ void gestionTouches() {
     if (key == 'r'){
       if (coef < 1.48){
         coef = coef + 0.25;
-        interval = 57.8 * (1.73 / coef);
+        interval = 28.9 * (1.73 / coef);
       }
     }
     // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
     if (key == 'f'){
       if (coef > 0.25){
         coef = coef - 0.25;
-        interval = 57.8 * (1.73 / coef);
+        interval = 28.9 * (1.73 / coef);
       }
     }
   }
@@ -468,14 +510,69 @@ void gestionTouches() {
     if (key == 'r'){
       if (coef < 1.48){
         coef = coef + 0.25;
-        interval = 57.8 * (1.73 / coef);
+        interval = 28.9 * (1.73 / coef);
       }
     }
     // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
     if (key == 'f'){
       if (coef > 0.25){
         coef = coef - 0.25;
-        interval = 57.8 * (1.73 / coef);
+        interval = 28.9 * (1.73 / coef);
+      }
+    }
+  }
+}
+
+void gestionObstaclesManuel() {
+  // Si une touche est entrée en filaire (via le PC)
+  if (Serial.available() > 0) {
+    char key = Serial.read();
+    Serial.print("Touche reçue : ");
+    Serial.println(key);
+
+    // Touche d'arrêt complet ()
+    if (key == 'c'){
+      arret = true;
+      avancer = false;
+      gauche = false;
+      droite = false;
+      reculer = false;
+    }
+    if (key == 'x') arret = false;
+
+    // Gestion des appuis
+    if (key == 't') avG = 50;
+    if (key == 'y') av = 50;
+    if (key == 'u') avD = 50;
+    if (key == 'j') d = 50;
+    if (key == 'n') arD = 50;
+    if (key == 'h') ar = 50;
+    if (key == 'b') arG = 50;
+    if (key == 'g') g = 50;
+
+    // Gestion des relâchements
+    if (key == 'T') avG = 80;
+    if (key == 'Y') av = 80;
+    if (key == 'U') avD = 80;
+    if (key == 'J') d = 80;
+    if (key == 'N') arD = 80;
+    if (key == 'H') ar = 80;
+    if (key == 'B') arG = 80;
+    if (key == 'G') g = 80;
+
+    // Gestion des vitesses (accélération ou ralentissement)
+    // Accélération (si vitesse max. autorisée ne va pas être dépassée)
+    if (key == 'r'){
+      if (coef < 1.48){
+        coef = coef + 0.25;
+        interval = 28.9 * (1.73 / coef);
+      }
+    }
+    // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
+    if (key == 'f'){
+      if (coef > 0.25){
+        coef = coef - 0.25;
+        interval = 28.9 * (1.73 / coef);
       }
     }
   }
@@ -484,7 +581,7 @@ void gestionTouches() {
 void setup(){
   Wire.begin();
   Wire.setClock(100000); // Défini la vitesse d'échange avec les modules en I2C à 100kHz
-  Serial.begin(9600); // défini la vitesse d'échange entre Arduino <-> PC à 115200 bauds = 115200 bits par secondes
+  Serial.begin(9600); // défini la vitesse d'échange entre Arduino <-> PC à 9600 bauds = 9600 bits par secondes
   BTSerial.begin(9600);  // Communication série avec le Bluetooth
 
   // Changer l'accélération (1-10)
@@ -515,22 +612,32 @@ void loop() {
   if (mode == 1) {
     gestionTouches();
   }
+  else if (mode == 3) {
+    // gestionTouches();
+    gestionObstaclesManuel();
+    int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
+    Serial.println(obstacleProche);
+    if (!arret) {
+      changementDirection(obstacleProche);
+    }
+
+  }
 
   // Mise à jour des moteurs (ajustement de la vitesse des deux moteurs afin de changer la direction, la vitesse du
   // robot, ou corriger la dérive)
   //
-  // L'intervalle de rafraichissement est définie par la variable "interval", calculée par 57.8 * (1.73 / coef) où :
+  // L'intervalle de rafraichissement est définie par la variable "interval", calculée par 28.9 * (1.73 / coef) où :
   // - coef est le coéficient de la vitesse du robot. C'est lui qui va permettre au robot d'aller plus ou moins vite.
   // Mais si ce même coef est haut, plus la vitesse est haute, et plus il faut faire de mise à jour pour corriger la
   // dérive ou éviter des obstacles.
   //
   // C'est donc pour cela que je l'inclus dans le calcul de l'intervalle
-  // 57.8 est une constante que j'ai choisis arbitrairement afin de faire en sorte que quand coef = 1 (vitesse moyenne),
+  // 28.9 est une constante que j'ai choisis arbitrairement afin de faire en sorte que quand coef = 1 (vitesse moyenne),
   // cela donne 100 ms d'intervalle entre chaque MAJ des moteurs.
   //
-  // Exemple : coef = 1, alors interval = 57.8 * (1.73 / 1) = 57.8 * 1.73 ~= 99.994 (ms), soit environ 10 MAJ/sec
-  // Autre exemple : coef = 1.73 (vitesse maximale), alors interval = 57.8 * (1.73 / 1.73) = 57.8 * 1 = 57.8 (ms), soit
-  // environ 17 MAJ/sec
+  // Exemple : coef = 1, alors interval = 28.9 * (1.73 / 1) = 28.9 * 1.73 ~= 49.997 (ms), soit environ 20 MAJ/sec
+  // Autre exemple : coef = 1.73 (vitesse maximale), alors interval = 28.9 * (1.73 / 1.73) = 28.9 * 1 = 28.9 (ms), soit
+  // environ 34.6 MAJ/sec
   //
   // On voit bien que plus le coef est haut, moins l'intervalle est grande, et donc plus il y a de mises à jour par
   // seconde.
