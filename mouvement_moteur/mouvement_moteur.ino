@@ -62,7 +62,7 @@ long enc2Prec = 0; // Même fonction que enc1Prec, pour enc2.
 // 1 = mode manuel
 // 2 = mode autonome
 // 3 = mode obstacle manuel (utilisé pour tester le programme de détection sans le radar LiDAR)
-int mode = 3;
+int mode = 1;
 
 
 
@@ -150,22 +150,22 @@ int detectionObstacleProche(byte avG, byte av, byte avD, byte d, byte arD, byte 
 void changementDirection(int statut) {
   switch(statut) {
     case 0:
-      avancer = true;
-      gauche = false;
-      reculer = false;
-      droite = false;
+      avancer = avancerOrig;
+      gauche = gaucheOrig;
+      reculer = reculerOrig;
+      droite = droiteOrig;
     return;
 
     // Si obstacle en avant à gauche
     case 1:
       // Si on va avant gauche
-      if (avancer && gauche && !reculer && !droite) {
+      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
         gauche = false;
         droite = true;
       }
 
       // Si on va en avant
-      else if (avancer && !gauche && !reculer && !droite) {
+      else if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
         droite = true;
       }
       // Autres cas, on ne change pas
@@ -176,18 +176,18 @@ void changementDirection(int statut) {
     // Si obstacle avant
     case 2:
       // Si obstacle en avant à gauche
-      if (avancer && gauche && !reculer && !droite) {
+      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
         avancer = false;
       }
 
       // Si on va en avant
-      else if (avancer && !gauche && !reculer && !droite) {
+      else if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
         avancer = false;
         gauche = true;
       }
 
       // Si on va en avant à droite
-      else if (avancer && !gauche && !reculer && droite) {
+      else if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
         avancer = false;
       }
       // Autres cas, on ne change pas
@@ -198,12 +198,12 @@ void changementDirection(int statut) {
     // Si obstacle en avant à droite
     case 3:
       // Si on va en avant
-      if (avancer && !gauche && !reculer && !droite) {
+      if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
         gauche = true;
       }
 
       // Si on va en avant à droite
-      else if (avancer && !gauche && !reculer && droite) {
+      else if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
         gauche = true;
         droite = false;
       }
@@ -215,12 +215,12 @@ void changementDirection(int statut) {
     // Si obstacle à droite
     case 4:
       // Si on va en avant à droite
-      if (avancer && !gauche && !reculer && droite) {
+      if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
         droite = false;
       }
 
       // Si on va en arrière à droite
-      else if (!avancer && !gauche && reculer && droite) {
+      else if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
         droite = false;
       }
     // Autres cas, on ne change pas
@@ -231,13 +231,13 @@ void changementDirection(int statut) {
     // Si obstacle en arrière à droite
     case 5:
       // Si on va en arrière à droite
-      if (!avancer && !gauche && reculer && droite) {
+      if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
         droite = false;
         gauche = true;
       }
 
       // Si on va en arrière
-      else if (!avancer && !gauche && reculer && !droite) {
+      else if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
         gauche = true;
       }
       // Autres cas, on ne change pas
@@ -248,20 +248,20 @@ void changementDirection(int statut) {
     // Si obstacle en arrière
     case 6:
       // Si on va en arrière à droite
-      if (!avancer && !gauche && reculer && droite) {
+      if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
         reculer = false;
         droite = false;
         gauche = true;
       }
 
       // Si on va en arrière
-      else if (!avancer && !gauche && reculer && !droite) {
+      else if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
         reculer = false;
         gauche = true;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancer && gauche && reculer && !droite) {
+      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
         gauche = false;
         reculer = false;
         droite = true;
@@ -274,12 +274,12 @@ void changementDirection(int statut) {
     // Si obstacle en arrière à gauche
     case 7:
       // Si on va en arrière
-      if (!avancer && !gauche && reculer && !droite) {
+      if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
         droite = true;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancer && gauche && reculer && !droite) {
+      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
         gauche = false;
         droite = true;
       }
@@ -291,12 +291,12 @@ void changementDirection(int statut) {
     // Si obstacle à gauche
     case 8:
       // Si on va en avant à gauche
-      if (avancer && gauche && !reculer && !droite) {
+      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
         gauche = false;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancer && gauche && reculer && !droite) {
+      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
         gauche = false;
       }
     // Autres cas, on ne change pas
@@ -459,16 +459,16 @@ void gestionTouches() {
     Serial.println(key);
 
     // Gestion des appuis
-    if (key == 'z') avancer = true;
-    if (key == 's') reculer = true;
-    if (key == 'q') gauche = true;
-    if (key == 'd') droite = true;
+    if (key == 'z') avancer, avancerOrig = true;
+    if (key == 's') reculer, reculerOrig = true;
+    if (key == 'q') gauche, gaucheOrig = true;
+    if (key == 'd') droite, droiteOrig = true;
 
     // Gestion des relâchements
-    if (key == 'Z') avancer = false;
-    if (key == 'S') reculer = false;
-    if (key == 'Q') gauche = false;
-    if (key == 'D') droite = false;
+    if (key == 'Z') avancer, avancerOrig = false;
+    if (key == 'S') reculer, reculerOrig = false;
+    if (key == 'Q') gauche, gaucheOrig = false;
+    if (key == 'D') droite, droiteOrig = false;
 
     // Gestion des vitesses (accélération ou ralentissement)
     // Accélération (si vitesse max. autorisée ne va pas être dépassée)
@@ -493,17 +493,43 @@ void gestionTouches() {
     Serial.print("Touche reçue : ");
     Serial.println(key);
 
+    gestionMode(key);
+
     // Gestion des appuis
-    if (key == 'z') avancer = true;
-    if (key == 's') reculer = true;
-    if (key == 'q') gauche = true;
-    if (key == 'd') droite = true;
+    if (key == 'z'){
+      avancer = true;
+      avancerOrig = true;
+    }
+    if (key == 's'){
+      reculer = true;
+      reculerOrig = true;
+    }
+    if (key == 'q'){
+      gauche = true;
+      gaucheOrig = true;
+    }
+    if (key == 'd'){
+      droite = true;
+      droiteOrig = true;
+    }
 
     // Gestion des relâchements
-    if (key == 'Z') avancer = false;
-    if (key == 'S') reculer = false;
-    if (key == 'Q') gauche = false;
-    if (key == 'D') droite = false;
+    if (key == 'Z'){
+      avancer = false;
+      avancerOrig = false;
+    }
+    if (key == 'S'){
+      reculer = false;
+      reculerOrig = false;
+    }
+    if (key == 'Q'){
+      gauche = false;
+      gaucheOrig = false;
+    }
+    if (key == 'D'){
+      droite = false;
+      droiteOrig = false;
+    }
 
     // Gestion des vitesses (accélération ou ralentissement)
     // Accélération (si vitesse max. autorisée ne va pas être dépassée)
@@ -523,6 +549,12 @@ void gestionTouches() {
   }
 }
 
+void gestionMode(char entree) {  
+  if (entree == '&') mode = 1;
+  else if (entree == 'é') mode = 2;
+  else if (entree == '"') mode = 3;
+}
+
 void gestionObstaclesManuel() {
   // Si une touche est entrée en filaire (via le PC)
   if (Serial.available() > 0) {
@@ -530,15 +562,25 @@ void gestionObstaclesManuel() {
     Serial.print("Touche reçue : ");
     Serial.println(key);
 
+    gestionMode(key);
+
     // Touche d'arrêt complet ()
     if (key == 'c'){
       arret = true;
       avancer = false;
+      avancerOrig = false;
       gauche = false;
+      gaucheOrig = false;
       droite = false;
+      droiteOrig = false;
       reculer = false;
+      reculerOrig = false;
     }
-    if (key == 'x') arret = false;
+    if (key == 'x'){
+      arret = false;
+      avancer = true;
+      avancerOrig = true;
+    }
 
     // Gestion des appuis
     if (key == 't') avG = 50;
@@ -608,12 +650,14 @@ void setup(){
 
 
 void loop() {
+
   // Si le mode est en manuel
   if (mode == 1) {
     gestionTouches();
   }
+
+  // Si le mode est en obstacle manuel
   else if (mode == 3) {
-    // gestionTouches();
     gestionObstaclesManuel();
     int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
     Serial.println(obstacleProche);
