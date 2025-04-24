@@ -1,8 +1,6 @@
 #include <Wire.h>
 #include <SoftwareSerial.h>
 
-
-
 // ====================================== VARIABLES ======================================
 #define MD25ADDRESS 0x58 // Adresse de la MD25
 #define SPEEDENGINE1 0x00 // Registre de la vitesse du moteur 1
@@ -15,19 +13,19 @@
                           // vitesse souhaitée)
 SoftwareSerial BTSerial(2, 3); // RX | TX du module Bluetooth
 
-// Variables de mouvement
+// Variables de mouvement actuellement adoptés par le robot
 bool avancer = false;
 bool gauche = false;
 bool reculer = false;
 bool droite = false;
 
+// Variables de mouvement prise par le robot avant détection d'obstacle. C'est donc les mouvements que le robot faisait
+// avant de rencontrer un obstacle et de modifier sa direction afin de l'éviter. Pour faire cela, il va modifier les
+// mouvements par les variables juste au dessus afin de garder en mémoire sa direction initiale.
 bool avancerOrig = false;
 bool gaucheOrig = false;
 bool reculerOrig = false;
 bool droiteOrig = false;
-
-
-
 
 // Variables direction obstacles (utilisé en mode obstacle manuel (voir plus bas)).
 // J'utilise le type "byte" qui est disponible en Arduino. L'équivalent en C++ est unsigned char. Tout deux peuvent
@@ -43,7 +41,6 @@ byte arG = 80;
 byte g = 80;
 bool arret = true;
 
-
 float coef = 0.5f; // Coefficient de vitesse (permet à l'utilisateur d'aller plus ou moins vite)
 
 unsigned long previousMillis = 0; // Stocke le dernier moment où on a lu les encodeurs. On définit sur 0 car le
@@ -56,15 +53,11 @@ long enc1Prec = 0; // Stockera le nombre précédemment stocké dans enc1 afin d
                    // nouvelle valeur de enc1 et son ancienne valeur.
 long enc2Prec = 0; // Même fonction que enc1Prec, pour enc2.
 
-
-
 // ====================================== MODE ======================================
 // 1 = mode manuel
 // 2 = mode autonome
 // 3 = mode obstacle manuel (utilisé pour tester le programme de détection sans le radar LiDAR)
 int mode = 1;
-
-
 
 // ====================================== FONCTIONS ======================================
 
@@ -118,8 +111,7 @@ long lireEncodeur(byte registre) {
   return position;
 }
 
-
-// Cette fonction va rercevoir les données des capteurs LiDAR et va déterminer quel capteur a capté l'obstacle le plus
+// Cette fonction va recevoir les données des capteurs LiDAR et va déterminer quel capteur a capté l'obstacle le plus
 // proche. Chaque capteur enverra ses données aux directions qui leur correspond.
 // Exemple : le capteur qui est pointé vers l'avant enverra ses données au paramètre "av" pour avant.
 // Autre exemple : le capteur qui est pointé vers l'avant à droite enverra ses données au paramètres "avD" pour avant
@@ -136,8 +128,6 @@ int detectionObstacleProche(byte avG, byte av, byte avD, byte d, byte arD, byte 
             minIndex = i;
         }
     }
-    Serial.print(minIndex + 1);
-    Serial.print("    ");
     // Si la valeur minimale est en dessous du seuil ET est unique → retour du capteur concerné
     if (valeurs[minIndex] < seuil)
     {
@@ -145,7 +135,6 @@ int detectionObstacleProche(byte avG, byte av, byte avD, byte d, byte arD, byte 
     }
     return 0; // Pas de danger détecté
 }
-
 
 void changementDirection(int statut) {
   switch(statut) {
@@ -451,111 +440,113 @@ void mettreAJourMoteursDerive(float coef, long enc1, long enc2, long enc1Prec, l
   }
 }
 
-void gestionTouches() {
-  // Si une touche est entrée par BLuetooth
-  if (BTSerial.available()) {
-    char key = BTSerial.read();
-    Serial.print("Reçu via Bluetooth : ");
-    Serial.println(key);
-
-    // Gestion des appuis
-    if (key == 'z') avancer, avancerOrig = true;
-    if (key == 's') reculer, reculerOrig = true;
-    if (key == 'q') gauche, gaucheOrig = true;
-    if (key == 'd') droite, droiteOrig = true;
-
-    // Gestion des relâchements
-    if (key == 'Z') avancer, avancerOrig = false;
-    if (key == 'S') reculer, reculerOrig = false;
-    if (key == 'Q') gauche, gaucheOrig = false;
-    if (key == 'D') droite, droiteOrig = false;
-
-    // Gestion des vitesses (accélération ou ralentissement)
-    // Accélération (si vitesse max. autorisée ne va pas être dépassée)
-    if (key == 'r'){
-      if (coef < 1.48){
-        coef = coef + 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
-    // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
-    if (key == 'f'){
-      if (coef > 0.25){
-        coef = coef - 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
-  }
-
-  // Si une touche est entrée en filaire (via le PC)
-  if (Serial.available() > 0) {
-    char key = Serial.read();
-    Serial.print("Touche reçue : ");
-    Serial.println(key);
-
-    gestionMode(key);
-
-    // Gestion des appuis
-    if (key == 'z'){
-      avancer = true;
-      avancerOrig = true;
-    }
-    if (key == 's'){
-      reculer = true;
-      reculerOrig = true;
-    }
-    if (key == 'q'){
-      gauche = true;
-      gaucheOrig = true;
-    }
-    if (key == 'd'){
-      droite = true;
-      droiteOrig = true;
-    }
-
-    // Gestion des relâchements
-    if (key == 'Z'){
-      avancer = false;
-      avancerOrig = false;
-    }
-    if (key == 'S'){
-      reculer = false;
-      reculerOrig = false;
-    }
-    if (key == 'Q'){
-      gauche = false;
-      gaucheOrig = false;
-    }
-    if (key == 'D'){
-      droite = false;
-      droiteOrig = false;
-    }
-
-    // Gestion des vitesses (accélération ou ralentissement)
-    // Accélération (si vitesse max. autorisée ne va pas être dépassée)
-    if (key == 'r'){
-      if (coef < 1.48){
-        coef = coef + 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
-    // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
-    if (key == 'f'){
-      if (coef > 0.25){
-        coef = coef - 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
-  }
-}
 
 void gestionMode(char entree) {  
-  if (entree == '&') mode = 1;
-  else if (entree == 'é') mode = 2;
-  else if (entree == '"') mode = 3;
+  if (entree == '&') mode = 1; // Mode manuel
+  else if (entree == 'é') mode = 2; // Mode autonome
+  else if (entree == '"') mode = 3; // Mode obstacle manuel
 }
 
-void gestionObstaclesManuel() {
+void gestionVitesse(char entree) {
+  // Gestion des vitesses (accélération ou ralentissement)
+  // Accélération (si vitesse max. autorisée ne va pas être dépassée)
+  if (entree == 'r'){
+    if (coef < 1.48){
+      coef = coef + 0.25;
+      interval = 28.9 * (1.73 / coef);
+    }
+  }
+  // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
+  if (entree == 'f'){
+    if (coef > 0.25){
+      coef = coef - 0.25;
+      interval = 28.9 * (1.73 / coef);
+    }
+  }
+}
+
+void gestionMouvement(char entree) {
+  // Gestion des appuis
+  if (entree == 'z'){
+    avancer = true;
+    avancerOrig = true;
+  }
+  if (entree == 's'){
+    reculer = true;
+    reculerOrig = true;
+  }
+  if (entree == 'q'){
+    gauche = true;
+    gaucheOrig = true;
+  }
+  if (entree == 'd'){
+    droite = true;
+    droiteOrig = true;
+  }
+
+  // Gestion des relâchements
+  if (entree == 'Z'){
+    avancer = false;
+    avancerOrig = false;
+  }
+  if (entree == 'S'){
+    reculer = false;
+    reculerOrig = false;
+  }
+  if (entree == 'Q'){
+    gauche = false;
+    gaucheOrig = false;
+  }
+  if (entree == 'D'){
+    droite = false;
+    droiteOrig = false;
+  }
+}
+
+
+void gestionObstacleManuel(char entree) {
+  // Touche d'arrêt complet ()
+  if (entree == 'c'){
+    arret = true;
+    avancer = false;
+    avancerOrig = false;
+    gauche = false;
+    gaucheOrig = false;
+    droite = false;
+    droiteOrig = false;
+    reculer = false;
+    reculerOrig = false;
+  }
+
+  // Touche de reprise
+  if (entree == 'x'){
+    arret = false;
+    avancer = true;
+    avancerOrig = true;
+  }
+
+  // Gestion des appuis
+  if (entree == 't') avG = 50;
+  if (entree == 'y') av = 50;
+  if (entree == 'u') avD = 50;
+  if (entree == 'j') d = 50;
+  if (entree == 'n') arD = 50;
+  if (entree == 'h') ar = 50;
+  if (entree == 'b') arG = 50;
+  if (entree == 'g') g = 50;
+
+  // Gestion des relâchements
+  if (entree == 'T') avG = 80;
+  if (entree == 'Y') av = 80;
+  if (entree == 'U') avD = 80;
+  if (entree == 'J') d = 80;
+  if (entree == 'N') arD = 80;
+  if (entree == 'H') ar = 80;
+  if (entree == 'B') arG = 80;
+  if (entree == 'G') g = 80;
+}
+
+void modeManuel(){
   // Si une touche est entrée en filaire (via le PC)
   if (Serial.available() > 0) {
     char key = Serial.read();
@@ -563,60 +554,28 @@ void gestionObstaclesManuel() {
     Serial.println(key);
 
     gestionMode(key);
+    gestionVitesse(key);
+    gestionMouvement(key);
+  }
+}
 
-    // Touche d'arrêt complet ()
-    if (key == 'c'){
-      arret = true;
-      avancer = false;
-      avancerOrig = false;
-      gauche = false;
-      gaucheOrig = false;
-      droite = false;
-      droiteOrig = false;
-      reculer = false;
-      reculerOrig = false;
-    }
-    if (key == 'x'){
-      arret = false;
-      avancer = true;
-      avancerOrig = true;
-    }
+void modeObstacleManuel() {
+  // Si une touche est entrée en filaire (via le PC)
+  if (Serial.available() > 0) {
+    char key = Serial.read();
+    Serial.print("Touche reçue : ");
+    Serial.println(key);
 
-    // Gestion des appuis
-    if (key == 't') avG = 50;
-    if (key == 'y') av = 50;
-    if (key == 'u') avD = 50;
-    if (key == 'j') d = 50;
-    if (key == 'n') arD = 50;
-    if (key == 'h') ar = 50;
-    if (key == 'b') arG = 50;
-    if (key == 'g') g = 50;
+    gestionMode(key);
+    gestionVitesse(key);
+    gestionObstacleManuel(key);
+  }
+  int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
 
-    // Gestion des relâchements
-    if (key == 'T') avG = 80;
-    if (key == 'Y') av = 80;
-    if (key == 'U') avD = 80;
-    if (key == 'J') d = 80;
-    if (key == 'N') arD = 80;
-    if (key == 'H') ar = 80;
-    if (key == 'B') arG = 80;
-    if (key == 'G') g = 80;
-
-    // Gestion des vitesses (accélération ou ralentissement)
-    // Accélération (si vitesse max. autorisée ne va pas être dépassée)
-    if (key == 'r'){
-      if (coef < 1.48){
-        coef = coef + 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
-    // Ralentissement (si vitesse min. autorisée ne va pas être dépassée)
-    if (key == 'f'){
-      if (coef > 0.25){
-        coef = coef - 0.25;
-        interval = 28.9 * (1.73 / coef);
-      }
-    }
+  // Si on a décidé d'arrêter le robot avec la touche 'c' (voir plus haut), on ne fait pas le changement de direction
+  // car sinon le robot continuerai de bouger.
+  if (!arret) {
+      changementDirection(obstacleProche);
   }
 }
 
@@ -653,18 +612,17 @@ void loop() {
 
   // Si le mode est en manuel
   if (mode == 1) {
-    gestionTouches();
+    modeManuel();
+  }
+
+  // Si le mode est en autonome (pas encore fait)
+  else if (mode == 2) {
+    break
   }
 
   // Si le mode est en obstacle manuel
   else if (mode == 3) {
-    gestionObstaclesManuel();
-    int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
-    Serial.println(obstacleProche);
-    if (!arret) {
-      changementDirection(obstacleProche);
-    }
-
+    modeObstacleManuel();
   }
 
   // Mise à jour des moteurs (ajustement de la vitesse des deux moteurs afin de changer la direction, la vitesse du
