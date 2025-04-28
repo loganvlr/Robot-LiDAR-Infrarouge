@@ -11,6 +11,7 @@
 #define WAITDELAY2SEC 0x32 // Commande pour désactiver le délai d'attente de 2 secondes des moteurs
 #define ACCELERATION 0x0E // Registre de l'accélération des moteurs (temps nécessaire aux moteurs pour atteindre la
                           // vitesse souhaitée)
+#define SLAVE_ADDR 0x42
 SoftwareSerial BTSerial(2, 3); // RX | TX du module Bluetooth
 
 // Variables de mouvement actuellement adoptés par le robot
@@ -39,6 +40,7 @@ byte arD = 80;
 byte ar = 80;
 byte arG = 80;
 byte g = 80;
+byte distances[8] = {avG, av, avD, d, arD, ar, arG, g};
 bool arret = true;
 
 float coef = 0.5f; // Coefficient de vitesse (permet à l'utilisateur d'aller plus ou moins vite)
@@ -442,7 +444,17 @@ void mettreAJourMoteursDerive(float coef, long enc1, long enc2, long enc1Prec, l
 
 
 void gestionMode(char entree) {  
-  if (entree == '&') mode = 1; // Mode manuel
+  if (entree == '&'){
+    mode = 1; // Mode manuel
+    avancer = false;
+    avancerOrig = false;
+    gauche = false;
+    gaucheOrig = false;
+    reculer = false;
+    reculerOrig = false;
+    droite = false;
+    droiteOrig = false;
+  }
   else if (entree == 'é') mode = 2; // Mode autonome
   else if (entree == '"') mode = 3; // Mode obstacle manuel
 }
@@ -503,6 +515,27 @@ void gestionMouvement(char entree) {
   }
 }
 
+void gestionObstacleAutonome(char entree) {
+  // Touche d'arrêt complet ()
+  if (entree == 'c'){
+    arret = true;
+    avancer = false;
+    avancerOrig = false;
+    gauche = false;
+    gaucheOrig = false;
+    droite = false;
+    droiteOrig = false;
+    reculer = false;
+    reculerOrig = false;
+  }
+
+  // Touche de reprise
+  if (entree == 'x'){
+    arret = false;
+    avancer = true;
+    avancerOrig = true;
+  }
+}
 
 void gestionObstacleManuel(char entree) {
   // Touche d'arrêt complet ()
@@ -559,6 +592,32 @@ void modeManuel(){
   }
 }
 
+void modeAutonome(){
+  // Si une touche est entrée en filaire (via le PC)
+  if (Serial.available() > 0) {
+    char key = Serial.read();
+    Serial.print("Touche reçue :");
+    Serial.println(key);
+
+    gestionMode(key);
+    gestionVitesse(key);
+    gestionObstacleAutonome(key);
+    avG = distances[0];
+    av = distances[1];
+    avD = distances[2];
+    d = distances[3];
+    arD = distances[4];
+    ar = distances[5];
+  }
+  int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
+
+  // Si on a décidé d'arrêter le robot avec la touche 'c' (voir plus haut), on ne fait pas le changement de direction
+  // car sinon le robot continuerai de bouger.
+  if (!arret) {
+    changementDirection(obstacleProche);
+  }
+}
+
 void modeObstacleManuel() {
   // Si une touche est entrée en filaire (via le PC)
   if (Serial.available() > 0) {
@@ -588,7 +647,7 @@ void setup(){
   // Changer l'accélération (1-10)
   Wire.beginTransmission(MD25ADDRESS);
   Wire.write(ACCELERATION);
-  Wire.write(5); // Je définis sur 5 afin d'éviter le patinage au démarrage
+  Wire.write(10); // Je définis sur 5 afin d'éviter le patinage au démarrage
   Wire.endTransmission();
 
   // Désactive le minuteur de 2 secondes qui stoppait les moteurs après 2 secondes sans mise à jour
@@ -615,9 +674,8 @@ void loop() {
     modeManuel();
   }
 
-  // Si le mode est en autonome (pas encore fait)
-  else if (mode == 2) {
-    break
+  else if (mode == 2){
+  modeAutonome();
   }
 
   // Si le mode est en obstacle manuel
@@ -645,6 +703,19 @@ void loop() {
   // seconde.
   unsigned long currentMillis = millis(); // Temps actuel
   if (currentMillis - previousMillis >= interval) {
+    // On demande 16 octets (8 × 2)
+    Wire.requestFrom(SLAVE_ADDR, (uint8_t)8);
+
+    for (uint8_t i = 0; i < 8; i++) {
+      if (Wire.available()) {
+        distances[i] = Wire.read();
+      }
+    }
+    Serial.println(distances[0]);
+    // Serial.println("test");
+
+
+
     previousMillis = currentMillis;  // Met à jour le dernier temps de lecture
     enc1Prec = enc1;
     enc2Prec = enc2;
