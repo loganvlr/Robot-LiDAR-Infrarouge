@@ -121,7 +121,7 @@ long lireEncodeur(byte registre) {
 // Note : les valeurs envoyés par les capteurs sont compris entre 10 et 80 (cm)
 int detectionObstacleProche(byte avG, byte av, byte avD, byte d, byte arD, byte ar, byte arG, byte g) {
     int valeurs[8] = {avG, av, avD, d, arD, ar, arG, g};
-    int seuil = 80;
+    int seuil = 30;
 
     int minIndex = 0;
 
@@ -150,16 +150,26 @@ void changementDirection(int statut) {
     // Si obstacle en avant à gauche
     case 1:
       // Si on va avant gauche
-      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
+      if (avancer && gauche && !reculer && !droite) {
         gauche = false;
         droite = true;
       }
 
       // Si on va en avant
-      else if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
+      else if (avancer && !gauche && !reculer && !droite) {
         droite = true;
       }
-      // Autres cas, on ne change pas
+
+      // Si on va déjà en avant à droite
+      else if (avancer && !gauche && !reculer && droite){
+        return;
+      }
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
     return;
 
 
@@ -167,21 +177,37 @@ void changementDirection(int statut) {
     // Si obstacle avant
     case 2:
       // Si obstacle en avant à gauche
-      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
+      if (avancer && gauche && !reculer && !droite) {
         avancer = false;
       }
 
       // Si on va en avant
-      else if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
+      else if (avancer && !gauche && !reculer && !droite) {
         avancer = false;
         gauche = true;
       }
 
       // Si on va en avant à droite
-      else if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
+      else if (avancer && !gauche && !reculer && droite) {
         avancer = false;
       }
-      // Autres cas, on ne change pas
+
+      // Si on va à gauche
+      else if (!avancer && gauche && !reculer && !droite) {
+        return;
+      }
+
+      // Si on va à droite
+      else if (!avancer && !gauche && !reculer && droite) {
+        return;
+      }
+
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
     return;
 
 
@@ -189,32 +215,46 @@ void changementDirection(int statut) {
     // Si obstacle en avant à droite
     case 3:
       // Si on va en avant
-      if (avancerOrig && !gaucheOrig && !reculerOrig && !droiteOrig) {
+      if (avancer && !gauche && !reculer && !droite) {
         gauche = true;
       }
 
       // Si on va en avant à droite
-      else if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
+      else if (avancer && !gauche && !reculer && droite) {
         gauche = true;
         droite = false;
       }
-      // Autres cas, on ne change pas
-    return;
 
+      // Si on va en avant à gauche
+      else if (avancer && gauche && !reculer && !droite) {
+        return;
+      }
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
+    return;
 
 
     // Si obstacle à droite
     case 4:
       // Si on va en avant à droite
-      if (avancerOrig && !gaucheOrig && !reculerOrig && droiteOrig) {
+      if (avancer && !gauche && !reculer && droite) {
         droite = false;
       }
 
       // Si on va en arrière à droite
-      else if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
+      else if (!avancer && !gauche && reculer && droite) {
         droite = false;
       }
-    // Autres cas, on ne change pas
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
     return;
 
 
@@ -222,16 +262,21 @@ void changementDirection(int statut) {
     // Si obstacle en arrière à droite
     case 5:
       // Si on va en arrière à droite
-      if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
+      if (!avancer && !gauche && reculer && droite) {
         droite = false;
         gauche = true;
       }
 
       // Si on va en arrière
-      else if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
+      else if (!avancer && !gauche && reculer && !droite) {
         gauche = true;
       }
-      // Autres cas, on ne change pas
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
     return;
 
 
@@ -239,25 +284,30 @@ void changementDirection(int statut) {
     // Si obstacle en arrière
     case 6:
       // Si on va en arrière à droite
-      if (!avancerOrig && !gaucheOrig && reculerOrig && droiteOrig) {
+      if (!avancer && !gauche && reculer && droite) {
         reculer = false;
         droite = false;
         gauche = true;
       }
 
       // Si on va en arrière
-      else if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
+      else if (!avancer && !gauche && reculer && !droite) {
         reculer = false;
         gauche = true;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
+      else if (!avancer && gauche && reculer && !droite) {
         gauche = false;
         reculer = false;
         droite = true;
       }
-    // Autres cas, on ne change pas
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
     return;
 
 
@@ -265,32 +315,41 @@ void changementDirection(int statut) {
     // Si obstacle en arrière à gauche
     case 7:
       // Si on va en arrière
-      if (!avancerOrig && !gaucheOrig && reculerOrig && !droiteOrig) {
+      if (!avancer && !gauche && reculer && !droite) {
         droite = true;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
+      else if (!avancer && gauche && reculer && !droite) {
         gauche = false;
         droite = true;
       }
-    // Autres cas, on ne change pas
-    return;
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
 
 
 
     // Si obstacle à gauche
     case 8:
       // Si on va en avant à gauche
-      if (avancerOrig && gaucheOrig && !reculerOrig && !droiteOrig) {
+      if (avancer && gauche && !reculer && !droite) {
         gauche = false;
       }
 
       // Si on va en arrière à gauche
-      else if (!avancerOrig && gaucheOrig && reculerOrig && !droiteOrig) {
+      else if (!avancer && gauche && reculer && !droite) {
         gauche = false;
       }
-    // Autres cas, on ne change pas
+      else{
+        avancer = avancerOrig;
+        gauche = gaucheOrig;
+        reculer = reculerOrig;
+        droite = droiteOrig;
+      }
   }
 }
 
@@ -455,7 +514,10 @@ void gestionMode(char entree) {
     droite = false;
     droiteOrig = false;
   }
-  else if (entree == 'é') mode = 2; // Mode autonome
+  // Mode autonome
+  else if (entree == 'a'){
+    mode = 2;
+  }
   else if (entree == '"') mode = 3; // Mode obstacle manuel
 }
 
@@ -602,19 +664,15 @@ void modeAutonome(){
     gestionMode(key);
     gestionVitesse(key);
     gestionObstacleAutonome(key);
-    avG = distances[0];
-    av = distances[1];
-    avD = distances[2];
-    d = distances[3];
-    arD = distances[4];
-    ar = distances[5];
   }
   int obstacleProche = detectionObstacleProche(avG, av, avD, d, arD, ar, arG, g);
-
+  Serial.print("Direction obstacle : ");
+  Serial.println(obstacleProche);
   // Si on a décidé d'arrêter le robot avec la touche 'c' (voir plus haut), on ne fait pas le changement de direction
   // car sinon le robot continuerai de bouger.
   if (!arret) {
     changementDirection(obstacleProche);
+    Serial.print("Entrée");
   }
 }
 
@@ -647,7 +705,7 @@ void setup(){
   // Changer l'accélération (1-10)
   Wire.beginTransmission(MD25ADDRESS);
   Wire.write(ACCELERATION);
-  Wire.write(10); // Je définis sur 5 afin d'éviter le patinage au démarrage
+  Wire.write(5); // Je définis sur 5 afin d'éviter le patinage au démarrage
   Wire.endTransmission();
 
   // Désactive le minuteur de 2 secondes qui stoppait les moteurs après 2 secondes sans mise à jour
@@ -675,7 +733,7 @@ void loop() {
   }
 
   else if (mode == 2){
-  modeAutonome();
+    modeAutonome();
   }
 
   // Si le mode est en obstacle manuel
@@ -711,10 +769,32 @@ void loop() {
         distances[i] = Wire.read();
       }
     }
-    Serial.println(distances[0]);
-    // Serial.println("test");
+    avG = distances[0];
+    av = distances[1];
+    avD = distances[2];
 
-
+    // Mise à 80 pour prendre en compte seulement les capteurs de devant
+    d = 80;
+    arD = 80;
+    ar = 80;
+    arG = 80;
+    g = 80;
+    Serial.print(distances[0]);
+    Serial.print(" ");
+    Serial.print(distances[1]);
+    Serial.print(" ");
+    Serial.print(distances[2]);
+    Serial.print(" ");
+    Serial.print(distances[3]);
+    Serial.print(" ");
+    Serial.print(distances[4]);
+    Serial.print(" ");
+    Serial.print(distances[5]);
+    Serial.println(" ");
+    Serial.print(distances[6]);
+    Serial.println(" ");
+    Serial.print(distances[7]);
+    Serial.println(" ");
 
     previousMillis = currentMillis;  // Met à jour le dernier temps de lecture
     enc1Prec = enc1;
