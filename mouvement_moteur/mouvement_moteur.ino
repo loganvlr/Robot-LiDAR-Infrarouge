@@ -330,6 +330,7 @@ void changementDirection(int statut) {
         reculer = reculerOrig;
         droite = droiteOrig;
       }
+    return;
 
 
 
@@ -350,6 +351,7 @@ void changementDirection(int statut) {
         reculer = reculerOrig;
         droite = droiteOrig;
       }
+    return;
   }
 }
 
@@ -652,6 +654,16 @@ void modeManuel(){
     gestionVitesse(key);
     gestionMouvement(key);
   }
+  // Si une touche est entrée en bluetooth (via l'application)
+  if (BTSerial.available() > 0) {
+    char key = (char)BTSerial.read();
+    Serial.print("Touche reçue : ");
+    Serial.println(key);
+
+    gestionMode(key);
+    gestionVitesse(key);
+    gestionMouvement(key);
+  }
 }
 
 void modeAutonome(){
@@ -659,6 +671,16 @@ void modeAutonome(){
   if (Serial.available() > 0) {
     char key = Serial.read();
     Serial.print("Touche reçue :");
+    Serial.println(key);
+
+    gestionMode(key);
+    gestionVitesse(key);
+    gestionObstacleAutonome(key);
+  }
+  // Si une touche est entrée en bluetooth (via l'application)
+  if (BTSerial.available() > 0) {
+    char key = (char)BTSerial.read();
+    Serial.print("Touche reçue : ");
     Serial.println(key);
 
     gestionMode(key);
@@ -680,6 +702,16 @@ void modeObstacleManuel() {
   // Si une touche est entrée en filaire (via le PC)
   if (Serial.available() > 0) {
     char key = Serial.read();
+    Serial.print("Touche reçue : ");
+    Serial.println(key);
+
+    gestionMode(key);
+    gestionVitesse(key);
+    gestionObstacleManuel(key);
+  }
+  // Si une touche est entrée en bluetooth (via l'application)
+  if (BTSerial.available() > 0) {
+    char key = (char)BTSerial.read();
     Serial.print("Touche reçue : ");
     Serial.println(key);
 
@@ -774,11 +806,16 @@ void loop() {
     avD = distances[2];
 
     // Mise à 80 pour prendre en compte seulement les capteurs de devant
-    d = 80;
-    arD = 80;
-    ar = 80;
-    arG = 80;
-    g = 80;
+    // d = 80;
+    // arD = 80;
+    // ar = 80;
+    // arG = 80;
+    // g = 80;
+    d = distances[3];
+    arD = distances[4];
+    ar = distances[5];
+    arG = distances[6];
+    g = distances[7];
     Serial.print(distances[0]);
     Serial.print(" ");
     Serial.print(distances[1]);
