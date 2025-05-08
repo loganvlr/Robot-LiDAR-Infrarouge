@@ -11,7 +11,7 @@
 #define WAITDELAY2SEC 0x32 // Commande pour désactiver le délai d'attente de 2 secondes des moteurs
 #define ACCELERATION 0x0E // Registre de l'accélération des moteurs (temps nécessaire aux moteurs pour atteindre la
                           // vitesse souhaitée)
-#define SLAVE_ADDR 0x42
+#define SLAVE_ADDR 0x42 // Adresse de l'Arduino Mega 2560 des capteurs
 SoftwareSerial BTSerial(2, 3); // RX | TX du module Bluetooth
 
 // Variables de mouvement actuellement adoptés par le robot
@@ -28,7 +28,7 @@ bool gaucheOrig = false;
 bool reculerOrig = false;
 bool droiteOrig = false;
 
-// Variables direction obstacles (utilisé en mode obstacle manuel (voir plus bas)).
+// Variables direction obstacles.
 // J'utilise le type "byte" qui est disponible en Arduino. L'équivalent en C++ est unsigned char. Tout deux peuvent
 // stocker des valeurs entre 0 et 255. Cela permet de n'utiliser qu'un seul octet plutôt que 4 comme les int.
 // Cela convient parfaitement aux données renvoyées par les capteurs du radar qui sont comprises entre 10 et 80.
@@ -413,32 +413,39 @@ void mettreAJourMoteurs(float coef){
   }
 }
 
+// On prend en compte la dérive seulement quand on va en avant. On pourrait très bien l'appliquer quand on va en marche arrière mais c'est plutôt rare donc pas vraiment utile.
 void mettreAJourMoteursDerive(float coef, long enc1, long enc2, long enc1Prec, long enc2Prec){
 
   // Avancer à gauche
   if (avancer && gauche && !reculer && !droite) {
+    // Calcul des écarts d'encodeur (valeurs absolues)
     long ecart1 = enc1 - enc1Prec;
     long ecart2 = enc2 - enc2Prec;
 
     if (ecart1 < 0) ecart1 = -ecart1;
     if (ecart2 < 0) ecart2 = -ecart2;
 
+    // Calcul de la dérive pour ajuster la trajectoire
     float derive = ((float)ecart1 / (float)ecart2) / 10;
 
+    // Ajustement des vitesses des roues en fonction de la dérive
     changerVitesseGauche((-16 + (derive * -16)) * coef);
     changerVitesseDroite((-80 - (derive * -80)) * coef);
   }
 
   // Avancer à droite
   else if (avancer && !gauche && !reculer && droite) {
+    // Calcul des écarts d'encodeur (valeurs absolues)
     long ecart1 = enc1 - enc1Prec;
     long ecart2 = enc2 - enc2Prec;
 
     if (ecart1 < 0) ecart1 = -ecart1;
     if (ecart2 < 0) ecart2 = -ecart2;
 
+    // Calcul de la dérive pour ajuster la trajectoire
     float derive = ((float)ecart2 / (float)ecart1) / 10;
 
+    // Ajustement des vitesses des roues en fonction de la dérive
     changerVitesseGauche((-80 - (derive * -80)) * coef);
     changerVitesseDroite((-16 + (derive * -16)) * coef);
   }
@@ -507,6 +514,8 @@ void mettreAJourMoteursDerive(float coef, long enc1, long enc2, long enc1Prec, l
 void gestionMode(char entree) {  
   if (entree == '&'){
     mode = 1; // Mode manuel
+    // On passe toutes les valeurs de directions à false par sécurité, afin que l'utilisateur ne soit pas prit par
+    // surprise
     avancer = false;
     avancerOrig = false;
     gauche = false;
@@ -516,10 +525,7 @@ void gestionMode(char entree) {
     droite = false;
     droiteOrig = false;
   }
-  // Mode autonome
-  else if (entree == 'a'){
-    mode = 2;
-  }
+  else if (entree == 'a') mode = 2; // Mode autonome
   else if (entree == '"') mode = 3; // Mode obstacle manuel
 }
 
@@ -816,22 +822,24 @@ void loop() {
     ar = distances[5];
     arG = distances[6];
     g = distances[7];
-    Serial.print(distances[0]);
-    Serial.print(" ");
-    Serial.print(distances[1]);
-    Serial.print(" ");
-    Serial.print(distances[2]);
-    Serial.print(" ");
-    Serial.print(distances[3]);
-    Serial.print(" ");
-    Serial.print(distances[4]);
-    Serial.print(" ");
-    Serial.print(distances[5]);
-    Serial.println(" ");
-    Serial.print(distances[6]);
-    Serial.println(" ");
-    Serial.print(distances[7]);
-    Serial.println(" ");
+
+    // Affichage des valeurs des capteurs
+    // Serial.print(distances[0]);
+    // Serial.print(" ");
+    // Serial.print(distances[1]);
+    // Serial.print(" ");
+    // Serial.print(distances[2]);
+    // Serial.print(" ");
+    // Serial.print(distances[3]);
+    // Serial.print(" ");
+    // Serial.print(distances[4]);
+    // Serial.print(" ");
+    // Serial.print(distances[5]);
+    // Serial.println(" ");
+    // Serial.print(distances[6]);
+    // Serial.println(" ");
+    // Serial.print(distances[7]);
+    // Serial.println(" ");
 
     previousMillis = currentMillis;  // Met à jour le dernier temps de lecture
     enc1Prec = enc1;
